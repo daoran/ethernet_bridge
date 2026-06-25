@@ -37,6 +37,7 @@ private:
         std::string topic_event;
         std::string frame;
         std::string ethernet_bindAddress;
+        std::string ethernet_multicastGroup;
         int         ethernet_bindPort;
         int         ethernet_receiveBufferSize;
     }   configuration_;

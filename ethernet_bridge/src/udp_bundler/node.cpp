@@ -20,6 +20,7 @@ Node::Node(ros::NodeHandle& nh, ros::NodeHandle& private_nh) : nh_(nh), private_
 
     // Ethernet connection
     private_nh.param<std::string>("ethernet_bindAddress", configuration_.ethernet_bindAddress, "0.0.0.0");
+    private_nh.param<std::string>("ethernet_multicastGroup", configuration_.ethernet_multicastGroup, "");
     private_nh.param<int>("ethernet_bindPort", configuration_.ethernet_bindPort, 55555);
     private_nh.param<int>("ethernet_receiveBufferSize", configuration_.ethernet_receiveBufferSize, 20*1024*1024);
 
@@ -80,6 +81,13 @@ Node::Node(ros::NodeHandle& nh, ros::NodeHandle& private_nh) : nh_(nh), private_
     // Set receive buffer size
     if (configuration_.ethernet_receiveBufferSize >= 0)
         socket_->setSocketOption(QAbstractSocket::ReceiveBufferSizeSocketOption, configuration_.ethernet_receiveBufferSize);
+
+    if (!configuration_.ethernet_multicastGroup.empty())
+    {
+        QHostAddress multicast_group(QString::fromStdString(configuration_.ethernet_multicastGroup));
+        bool multicast_success = socket_->joinMulticastGroup(multicast_group);
+        ROS_INFO("Joining multicast group %s -> %s", multicast_group.toString().toLatin1().data(), multicast_success ? "ok" : "failed");
+    }
 
     /// Console feedback
     ROS_INFO("Binding to %s:%u -> %s", QHostAddress(QString::fromStdString(configuration_.ethernet_bindAddress)).toString().toLatin1().data(), configuration_.ethernet_bindPort, success?"ok":"failed");
