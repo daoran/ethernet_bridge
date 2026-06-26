@@ -1,5 +1,5 @@
 # ethernet_bridge
-## _Ethernet Bridge for ROS_
+## _Ethernet Bridge for ROS (ROS1 and ROS2)_
 
 `ethernet_bridge` is a set of ROS nodes to bridge network interfaces from and to the ROS message definitions [`ethernet_msgs`](ethernet_msgs/). The Ethernet bridge can be used to insert network abstraction layers in ROS processing chains and to separate Ethernet interfaces from parser nodes. As Ethernet data is usually compressed, it is conceivable to store raw Ethernet data in ROS bags instead of processed or parsed device data. By this means, the size of ROS bags is kept minimal while providing a longterm-stable, generic data interface.
 
@@ -32,7 +32,9 @@
 
 ## ROS Package Dependencies
 
-- `librosqt` (only needed for the bridging nodes)
+- **ROS 1**:
+  - `librosqt` (only needed for the bridging nodes)
+- **ROS 2**: (none)
 
 ## Nodes Description
 ### _udp_: Standard UDP Bridge
@@ -193,7 +195,7 @@ This packet stores the payload of `ethernet_msgs/Packet` in a file. Optionally, 
 ```
 
 ## Benchmarks
-The following benchmarks denote the CPU overhead caused by using the Ethernet abstraction between Ethernet interface and parser nodes. The overhead has been computed by subtracting the CPU load of a) the Ethernet bridge plus b) the receiving node from the CPU load of a comparable receiving node which receives the Ethernet data directly (i.e. a traditional parser).
+The following ROS1 benchmarks denote the CPU overhead caused by using the Ethernet abstraction between Ethernet interface and parser nodes. The overhead has been computed by subtracting the CPU load of a) the Ethernet bridge plus b) the receiving node from the CPU load of a comparable receiving node which receives the Ethernet data directly (i.e. a traditional parser).
 
 | Load                                        | Application Example         | `udp`                 | `udp_bundler`       |
 |---------------------------------------------|-----------------------------|-----------------------|---------------------|

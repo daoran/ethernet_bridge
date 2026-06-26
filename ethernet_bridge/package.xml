@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<package format="2">
+<package format="3">
   <name>ethernet_bridge</name>
   <version>1.0.0</version>
   <description>Ethernet Bridges</description>
@@ -7,16 +7,19 @@
   <maintainer email="philipp.berthold@unibw.de">phbe</maintainer>
   <license>BSD</license>
 
-  <buildtool_depend>catkin</buildtool_depend>
-  <build_depend>std_msgs</build_depend>
-  <build_depend>roscpp</build_depend>
-  <build_depend>ethernet_msgs</build_depend>
-  <build_depend>librosqt</build_depend>
-  <build_export_depend>std_msgs</build_export_depend>
-  <build_export_depend>ethernet_msgs</build_export_depend>
-  <build_export_depend>librosqt</build_export_depend>
-  <exec_depend>std_msgs</exec_depend>
-  <exec_depend>roscpp</exec_depend>
-  <exec_depend>ethernet_msgs</exec_depend>
+  <!-- ROS 1 (catkin + Qt + librosqt) -->
+  <buildtool_depend condition="$ROS_VERSION == 1">catkin</buildtool_depend>
+  <build_depend condition="$ROS_VERSION == 1">roscpp</build_depend>
+  <exec_depend condition="$ROS_VERSION == 1">roscpp</exec_depend>
+  <build_depend condition="$ROS_VERSION == 1">librosqt</build_depend>
+  <build_export_depend condition="$ROS_VERSION == 1">librosqt</build_export_depend>
+
+  <!-- ROS 2 (ament + rclcpp) — from-scratch, recvmmsg-based, no Asio -->
+  <buildtool_depend condition="$ROS_VERSION == 2">ament_cmake</buildtool_depend>
+  <depend condition="$ROS_VERSION == 2">rclcpp</depend>
+
+  <!-- both ROS versions -->
+  <depend>std_msgs</depend>
+  <depend>ethernet_msgs</depend>
 
 </package>
