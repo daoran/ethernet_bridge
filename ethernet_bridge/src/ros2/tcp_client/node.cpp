@@ -148,6 +148,7 @@ void TcpClient::dropConnection(bool emit_event)
 void TcpClient::connectionLoop()
 {
   std::vector<uint8_t> buf(kRecvBuf);
+  bool ever_connected = false;
 
   while (running_.load(std::memory_order_relaxed)) {
     bool conn;
@@ -157,6 +158,10 @@ void TcpClient::connectionLoop()
     }
 
     if (!conn) {
+      // reconnectInterval <= 0 disables auto-reconnect: once the connection has
+      // been up, a later drop is terminal (the ROS 1 node starts no reconnect
+      // timer in this case).
+      if (ever_connected && cfg_.ethernet_reconnectInterval <= 0) break;
       if (!tryConnect()) {
         // back off reconnectInterval (in small steps so shutdown stays responsive)
         const int step = 50;
@@ -169,6 +174,7 @@ void TcpClient::connectionLoop()
         if (cfg_.ethernet_reconnectInterval <= 0) break;  // auto-reconnect disabled
         continue;
       }
+      ever_connected = true;
       publishEvent(ethernet_msgs::msg::EventType::CONNECTED);
       RCLCPP_INFO(get_logger(), "connected.");
     }
