@@ -148,7 +148,7 @@ void TcpClient::dropConnection(bool emit_event)
 void TcpClient::connectionLoop()
 {
   std::vector<uint8_t> buf(kRecvBuf);
-  bool ever_connected = false;
+  bool first_attempt = true;
 
   while (running_.load(std::memory_order_relaxed)) {
     bool conn;
@@ -158,23 +158,22 @@ void TcpClient::connectionLoop()
     }
 
     if (!conn) {
-      // reconnectInterval <= 0 disables auto-reconnect: once the connection has
-      // been up, a later drop is terminal (the ROS 1 node starts no reconnect
-      // timer in this case).
-      if (ever_connected && cfg_.ethernet_reconnectInterval <= 0) break;
-      if (!tryConnect()) {
-        // back off reconnectInterval (in small steps so shutdown stays responsive)
-        const int step = 50;
-        int slept = 0;
-        const int target = cfg_.ethernet_reconnectInterval > 0 ? cfg_.ethernet_reconnectInterval : 500;
-        while (running_.load(std::memory_order_relaxed) && slept < target) {
-          std::this_thread::sleep_for(std::chrono::milliseconds(step));
-          slept += step;
+      if (!first_attempt) {
+        // reconnectInterval <= 0 disables auto-reconnect: after the first attempt
+        // a failed connect or a drop is terminal (the ROS 1 node starts no timer).
+        if (cfg_.ethernet_reconnectInterval <= 0) break;
+        // Pace every reconnect like the ROS 1 timer - also after a drop, not only
+        // after a failed connect - so a flapping peer cannot spin a hot reconnect
+        // loop. Sleep in small steps so shutdown stays responsive.
+        for (int slept = 0;
+             running_.load(std::memory_order_relaxed) && slept < cfg_.ethernet_reconnectInterval;
+             slept += 50) {
+          std::this_thread::sleep_for(std::chrono::milliseconds(50));
         }
-        if (cfg_.ethernet_reconnectInterval <= 0) break;  // auto-reconnect disabled
-        continue;
+        if (!running_.load(std::memory_order_relaxed)) break;
       }
-      ever_connected = true;
+      first_attempt = false;
+      if (!tryConnect()) continue;
       publishEvent(ethernet_msgs::msg::EventType::CONNECTED);
       RCLCPP_INFO(get_logger(), "connected.");
     }
