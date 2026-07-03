@@ -99,6 +99,10 @@ bool UdpBundler::openSocket()
   const int one = 1;
   ::setsockopt(fd_, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one));
 
+  // Qt's QUdpSocket enables SO_BROADCAST by default; a raw POSIX socket does not,
+  // so broadcast / directed-broadcast sends would otherwise fail with EACCES.
+  ::setsockopt(fd_, SOL_SOCKET, SO_BROADCAST, &one, sizeof(one));
+
   if (cfg_.ethernet_receiveBufferSize >= 0) {
     const int want = cfg_.ethernet_receiveBufferSize;
     ::setsockopt(fd_, SOL_SOCKET, SO_RCVBUF, &want, sizeof(want));
