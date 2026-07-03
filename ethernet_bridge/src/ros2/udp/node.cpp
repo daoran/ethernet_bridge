@@ -219,14 +219,36 @@ void UdpBridge::onHostToBus(ethernet_msgs::msg::Packet::ConstSharedPtr msg)
   dst.sin_addr.s_addr = htonl(ethernet_msgs::nativeIp4ByArray(msg->receiver_ip));
   dst.sin_port = htons(msg->receiver_port);
 
-  // NOTE: the ROS 1 node could override the *source* address (msg->sender_ip)
-  // via Qt's setSender(); replicating that needs sendmsg()+IP_PKTINFO and is a
-  // TODO. With sender_ip == 0 (the default) the bound address is used.
-  const ssize_t sent = ::sendto(
-    fd_, msg->payload.data(), msg->payload.size(), 0, reinterpret_cast<sockaddr *>(&dst),
-    sizeof(dst));
+  iovec iov{};
+  iov.iov_base = const_cast<uint8_t *>(msg->payload.data());
+  iov.iov_len = msg->payload.size();
+
+  msghdr mh{};
+  mh.msg_name = &dst;
+  mh.msg_namelen = sizeof(dst);
+  mh.msg_iov = &iov;
+  mh.msg_iovlen = 1;
+
+  // Source-address override (ROS 1 Qt setSender()): sender_ip != 0 -> send from that
+  // local source IP via IP_PKTINFO; sender_ip == 0 -> the bound address is used.
+  // Only local addresses are valid (no spoofing); the source port stays the bound port.
+  std::array<uint8_t, CMSG_SPACE(sizeof(in_pktinfo))> control{};
+  const uint32_t src = ethernet_msgs::nativeIp4ByArray(msg->sender_ip);
+  if (src != 0) {
+    mh.msg_control = control.data();
+    mh.msg_controllen = sizeof(control);
+    cmsghdr * cm = CMSG_FIRSTHDR(&mh);
+    cm->cmsg_level = IPPROTO_IP;
+    cm->cmsg_type = IP_PKTINFO;
+    cm->cmsg_len = CMSG_LEN(sizeof(in_pktinfo));
+    in_pktinfo info{};
+    info.ipi_spec_dst.s_addr = htonl(src);
+    std::memcpy(CMSG_DATA(cm), &info, sizeof(info));
+  }
+
+  const ssize_t sent = ::sendmsg(fd_, &mh, 0);
   if (sent < 0) {
-    RCLCPP_ERROR(get_logger(), "sendto() failed: %s", std::strerror(errno));
+    RCLCPP_ERROR(get_logger(), "sendmsg() failed: %s", std::strerror(errno));
     publishEvent(ethernet_msgs::msg::EventType::SOCKETERROR, errno);
   }
 }
