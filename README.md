@@ -27,6 +27,7 @@
 - UDP node
 - UDP bundler node which bundles UDP packets of a burst (e.g. fragmented sensor measurement) and thereby drastically reduces the number of ROS messages
 - TCP client node
+- Universal node, supporting TCP, UDP and DNS hostnames (with optional auto-follow)
 - Packet redirecting node, can be used to send Ethernet messages from a ROS bag to the local network with modified recipients
 - File sink node, stores transferred Ethernet data to a file
 
@@ -134,6 +135,46 @@ The TCP client bridge publishes the current connection state for monitoring purp
     <param name="topic_event"           value="$(arg topic_ethernet)/event" />
     <param name="ethernet_peerAddress"  value="$(arg ethernet_ip)" />
     <param name="ethernet_peerPort"     value="$(arg ethernet_port)" />
+  </node>
+```
+
+### _universal_: Universal Bridge
+A convenience bridge for talking to a single peer identified by a hostname. Supports both TCP and UDP. The peer address may be a hostname or an IP, and it can optionally keep following DNS changes — switching to a new address even while the old one is still reachable. The send destination is always the configured peer (use the `udp` node for arbitrary per-packet recipients).
+
+#### Options
+
+- `topic_*`: ROS topic specific configuration segment
+  - `topic_busToHost`: ROS topic which receives Ethernet packets (published by bridge)
+  - `topic_hostToBus`: ROS topic which sends Ethernet packets (subscribed by bridge)
+  - `topic_event`: ROS topic providing communication events (published by bridge)
+- `ethernet_*`: Ethernet interface specific configuration segment
+  - `ethernet_protocol`: transport to use, `tcp` or `udp`. Default: `tcp`.
+  - `ethernet_peerAddress`: peer address as a hostname or IP
+  - `ethernet_peerPort`: peer port
+  - `ethernet_bindAddress`: local bind address (UDP only, optional). Default: `0.0.0.0`.
+  - `ethernet_bindPort`: local bind port (UDP only, optional). Default: 0 (ephemeral).
+  - `ethernet_bufferSize`: custom buffer size in bytes. Use 0 for system default. Default: 0.
+  - `ethernet_reconnectInterval`: auto-reconnect (on connection loss) interval in milliseconds. Use 0 to deactivate (TCP). Default: 500ms.
+  - `ethernet_dnsFollow`: periodically re-resolve the hostname and switch to a changed address even while the old one still works. Default: false.
+  - `ethernet_dnsRefreshInterval`: re-resolve interval in milliseconds when `ethernet_dnsFollow` is enabled. Default: 5000ms.
+
+#### Application Example
+
+```
+  <!-- Node parameters -->
+  <arg name="topic_ethernet"        default="/bus/ethernet/your_device/tcp55555" />
+  <arg name="ethernet_host"         default="device.local" />
+  <arg name="ethernet_port"         default="55555" />
+
+  <!-- Ethernet bridge node -->
+  <node pkg="ethernet_bridge" type="universal" name="universal">
+    <param name="topic_busToHost"       value="$(arg topic_ethernet)/bus_to_host" />
+    <param name="topic_hostToBus"       value="$(arg topic_ethernet)/host_to_bus" />
+    <param name="topic_event"           value="$(arg topic_ethernet)/event" />
+    <param name="ethernet_protocol"     value="tcp" />
+    <param name="ethernet_peerAddress"  value="$(arg ethernet_host)" />
+    <param name="ethernet_peerPort"     value="$(arg ethernet_port)" />
+    <param name="ethernet_dnsFollow"    value="true" />
   </node>
 ```
 

@@ -49,6 +49,10 @@ if("$ENV{ROS_VERSION}" STREQUAL "1")
   add_executable(file_sink src/ros1/file_sink/main.cpp src/ros1/file_sink/node.cpp)
   target_link_libraries(file_sink ${catkin_LIBRARIES} Qt5::Core Qt5::Network)
 
+  ## Universal Bridge (one transport, TCP or UDP; hostname/DNS-aware, ethernet_dnsFollow)
+  add_executable(universal src/ros1/universal/main.cpp src/ros1/universal/node.cpp)
+  target_link_libraries(universal ${catkin_LIBRARIES} Qt5::Core Qt5::Network)
+
 elseif("$ENV{ROS_VERSION}" STREQUAL "2")
   # ===================== ROS 2 (ament + rclcpp) =====================
   # No librosqt single-loop equivalent in ROS 2: the rclcpp executor runs the
@@ -88,7 +92,12 @@ elseif("$ENV{ROS_VERSION}" STREQUAL "2")
   ament_target_dependencies(tcp_client rclcpp std_msgs ethernet_msgs)
   target_link_libraries(tcp_client Threads::Threads)
 
-  install(TARGETS udp udp_bundler redirector file_sink tcp_client DESTINATION lib/${PROJECT_NAME})
+  ## Universal Bridge (one transport, TCP or UDP; hostname/DNS-aware, follow_dns)
+  add_executable(universal src/ros2/universal/main.cpp src/ros2/universal/node.cpp)
+  ament_target_dependencies(universal rclcpp std_msgs ethernet_msgs)
+  target_link_libraries(universal Threads::Threads)
+
+  install(TARGETS udp udp_bundler redirector file_sink tcp_client universal DESTINATION lib/${PROJECT_NAME})
 
   ament_package()
 
