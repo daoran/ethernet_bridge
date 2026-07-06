@@ -24,6 +24,40 @@ namespace
 {
 constexpr int kBatch = 16;                  // datagrams drained per recvmmsg() wakeup
 constexpr std::size_t kDatagramMax = 65536; // max UDP datagram payload
+
+#if !defined(__linux__)
+// macOS/BSD lack recvmmsg(2)/struct mmsghdr/MSG_WAITFORONE (the batch-receive
+// syscall is Linux-only). Emulate it with a loop of recvmsg(2): flags pass
+// through to each recvmsg; MSG_WAITFORONE means "block for the first datagram,
+// then drain the rest without blocking", so after the first receive we OR in
+// MSG_DONTWAIT. Returns the count received (or -1 with errno preserved when the
+// very first receive fails).
+#ifndef MSG_WAITFORONE
+#define MSG_WAITFORONE 0x10000  // synthetic (matches the Linux value); stripped below
+#endif
+struct mmsghdr
+{
+  msghdr msg_hdr;
+  unsigned int msg_len;
+};
+
+int recvmmsg(int fd, mmsghdr * msgvec, unsigned int vlen, int flags, const void * /*timeout*/)
+{
+  const bool waitforone = (flags & MSG_WAITFORONE) != 0;
+  int per_msg_flags = flags & ~MSG_WAITFORONE;  // MSG_WAITFORONE is emulated, not a real recvmsg flag
+  unsigned int received = 0;
+  for (; received < vlen; ++received) {
+    const ssize_t r = ::recvmsg(fd, &msgvec[received].msg_hdr, per_msg_flags);
+    if (r < 0) {
+      if (received == 0) return -1;  // propagate errno (EAGAIN/EWOULDBLOCK/real error)
+      break;                         // already have datagrams -> report them
+    }
+    msgvec[received].msg_len = static_cast<unsigned int>(r);
+    if (waitforone) per_msg_flags |= MSG_DONTWAIT;  // block only for the first
+  }
+  return static_cast<int>(received);
+}
+#endif  // !__linux__
 }  // namespace
 
 UdpBridge::UdpBridge(const rclcpp::NodeOptions & options)
@@ -172,7 +206,9 @@ void UdpBridge::receiveLoop()
 
     // MSG_WAITFORONE: block for the first datagram, then drain whatever else is
     // immediately available (up to kBatch) without further blocking.
-    const int n = ::recvmmsg(fd_, msgs.data(), kBatch, MSG_WAITFORONE, nullptr);
+    // Unqualified: resolves to glibc's ::recvmmsg on Linux, to the recvmsg-loop
+    // fallback in the anonymous namespace above on macOS/BSD.
+    const int n = recvmmsg(fd_, msgs.data(), kBatch, MSG_WAITFORONE, nullptr);
     if (n < 0) {
       if (!running_.load(std::memory_order_relaxed)) break;  // shutdown()
       if (errno == EINTR) continue;
