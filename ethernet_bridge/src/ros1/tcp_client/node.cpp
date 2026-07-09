@@ -66,7 +66,8 @@ Node::~Node()
 
 void Node::rosCallback_ethernet(const ethernet_msgs::Packet::ConstPtr &msg)
 {
-    socket_->write(reinterpret_cast<const char*>(msg->payload.data()), msg->payload.size());
+    if (socket_->state() == QAbstractSocket::ConnectedState)
+        socket_->write(reinterpret_cast<const char*>(msg->payload.data()), msg->payload.size());
 }
 
 void Node::slotEthernetNewData()

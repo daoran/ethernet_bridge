@@ -159,7 +159,8 @@ void Node::rosCallback_ethernet(const ethernet_msgs::Packet::ConstPtr &msg)
 {
     if (configuration_.ethernet_protocol == Protocol::Tcp)
     {
-        tcpSocket_->write(reinterpret_cast<const char*>(msg->payload.data()), msg->payload.size());
+        if (tcpSocket_->state() == QAbstractSocket::ConnectedState)
+            tcpSocket_->write(reinterpret_cast<const char*>(msg->payload.data()), msg->payload.size());
         return;
     }
 
