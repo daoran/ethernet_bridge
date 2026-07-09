@@ -138,7 +138,9 @@ bool UniversalBridge::tcpConnect()
 {
   sockaddr_in peer{};
   if (!resolvePeer(peer)) {
-    RCLCPP_WARN(get_logger(), "could not resolve '%s'", cfg_.ethernet_peerAddress.c_str());
+    RCLCPP_WARN_THROTTLE(
+      get_logger(), *get_clock(), 30000, "could not resolve '%s'",
+      cfg_.ethernet_peerAddress.c_str());
     return false;
   }
 
