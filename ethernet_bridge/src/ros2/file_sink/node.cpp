@@ -47,8 +47,12 @@ FileSink::FileSink(const rclcpp::NodeOptions & options)
     RCLCPP_INFO(get_logger(), "only storing packets with sender port %d", cfg_.filter_port);
   }
 
+  // best_effort by default (max publisher compatibility); qos_reliableSubscription:=true for reliable
+  rclcpp::QoS sub_qos(rclcpp::KeepLast(100));
+  if (!declare_parameter<bool>("qos_reliableSubscription", false))
+    sub_qos.best_effort();
   sub_ = create_subscription<ethernet_msgs::msg::Packet>(
-    cfg_.topic_in, rclcpp::QoS(rclcpp::KeepLast(100)),
+    cfg_.topic_in, sub_qos,
     std::bind(&FileSink::onIn, this, std::placeholders::_1));
 }
 

@@ -33,8 +33,12 @@ Redirector::Redirector(const rclcpp::NodeOptions & options)
 
   pub_ = create_publisher<ethernet_msgs::msg::Packet>(
     cfg_.topic_out, rclcpp::QoS(rclcpp::KeepLast(100)));
+  // best_effort by default (max publisher compatibility); qos_reliableSubscription:=true for reliable
+  rclcpp::QoS sub_qos(rclcpp::KeepLast(100));
+  if (!declare_parameter<bool>("qos_reliableSubscription", false))
+    sub_qos.best_effort();
   sub_ = create_subscription<ethernet_msgs::msg::Packet>(
-    cfg_.topic_in, rclcpp::QoS(rclcpp::KeepLast(100)),
+    cfg_.topic_in, sub_qos,
     std::bind(&Redirector::onIn, this, std::placeholders::_1));
 
   if (redirect_ip_valid_) {

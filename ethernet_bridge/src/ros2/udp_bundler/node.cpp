@@ -83,8 +83,12 @@ UdpBundler::UdpBundler(const rclcpp::NodeOptions & options)
     cfg_.topic_busToHost, rclcpp::QoS(rclcpp::KeepLast(100)));
   pub_event_ = create_publisher<ethernet_msgs::msg::Event>(
     cfg_.topic_event, rclcpp::QoS(rclcpp::KeepLast(1)).transient_local());
+  // best_effort by default (max publisher compatibility); qos_reliableSubscription:=true for reliable
+  rclcpp::QoS sub_qos(rclcpp::KeepLast(100));
+  if (!declare_parameter<bool>("qos_reliableSubscription", false))
+    sub_qos.best_effort();
   sub_hostToBus_ = create_subscription<ethernet_msgs::msg::Packet>(
-    cfg_.topic_hostToBus, rclcpp::QoS(rclcpp::KeepLast(100)),
+    cfg_.topic_hostToBus, sub_qos,
     std::bind(&UdpBundler::onHostToBus, this, std::placeholders::_1));
 
   if (cfg_.trigger_numberOfPackets > 0) {

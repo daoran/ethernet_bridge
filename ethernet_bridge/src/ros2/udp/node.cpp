@@ -73,15 +73,17 @@ UdpBridge::UdpBridge(const rclcpp::NodeOptions & options)
   cfg_.ethernet_receiveBufferSize =
     declare_parameter<int>("ethernet_receiveBufferSize", 20 * 1024 * 1024);
 
-  // QoS faithful to the ROS 1 node: reliable, queue depth 100. The event topic
-  // is latched (transient_local). Very high-rate deployments can remap to
-  // best_effort via external QoS overrides.
+  // Publishers reliable (queue depth 100); event latched (transient_local).
   pub_busToHost_ = create_publisher<ethernet_msgs::msg::Packet>(
     cfg_.topic_busToHost, rclcpp::QoS(rclcpp::KeepLast(100)));
   pub_event_ = create_publisher<ethernet_msgs::msg::Event>(
     cfg_.topic_event, rclcpp::QoS(rclcpp::KeepLast(1)).transient_local());
+  // best_effort by default (max publisher compatibility); qos_reliableSubscription:=true for reliable
+  rclcpp::QoS sub_qos(rclcpp::KeepLast(100));
+  if (!declare_parameter<bool>("qos_reliableSubscription", false))
+    sub_qos.best_effort();
   sub_hostToBus_ = create_subscription<ethernet_msgs::msg::Packet>(
-    cfg_.topic_hostToBus, rclcpp::QoS(rclcpp::KeepLast(100)),
+    cfg_.topic_hostToBus, sub_qos,
     std::bind(&UdpBridge::onHostToBus, this, std::placeholders::_1));
 
   // UDP has no real connection state; mirror the ROS 1 node and announce the
